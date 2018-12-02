@@ -3,6 +3,7 @@
  * (c) 2013 Baimuratov Iskander aka MrBizor
  * 
  * coordinate transformation
+ * 
  */
 
  var PI = Math.PI;
