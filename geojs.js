@@ -1,9 +1,8 @@
 /**
- * GEOjs
+ * GeoJS
  * (c) 2013 Baimuratov Iskander aka MrBizor
  * 
  * coordinate transformation
- * 
  */
 
  var PI = Math.PI;
@@ -81,24 +80,6 @@ function degtodms(deg){
 
 ////////////////////////////////////////
 
-function tXYZ(X, Y, Z){
-	this.X = X;
-	this.Y = Y;
-	this.Z = Z;
-}
-
-function tBLH(B, L, H){
-	this.B = B;
-	this.L = L;
-	this.H = H;
-}
-
-function tNEH(N, E, H){
-	this.N = N;
-	this.E = E;
-	this.H = H;
-}
-
 function datum(datum_set){
 	this.name = datum_set.name;
 	this.a = datum_set.a;
@@ -137,19 +118,19 @@ datum.prototype.vertradius = function(B){
 	return vr;
 }
 
-function proj(Name, Ptype, z, S, B0, L0, N0, E0){
-	this.Name = Name;
-	this.Ptype = Ptype;
-	this.z = z;
-	this.S = S;
-	this.B0 = B0 * PI / 180;
-	this.L0 = L0 * PI / 180;
-	this.N0 = N0;
-	this.E0 = E0;
+function proj(pr_set){
+	this.Name = pr_set.pname;
+	this.Ptype = pr_set.ptype;
+	this.z = pr_set.pz;
+	this.S = pr_set.pscale;
+	this.B0 = pr_set.pB0 * PI / 180;
+	this.L0 = pr_set.pL0 * PI / 180;
+	this.N0 = pr_set.pN0;
+	this.E0 = pr_set.pE0;
 }
 
 function BLHtoXYZ(e, BLH){
-	var XYZ = new tXYZ();
+	var XYZ = {};
 	var B = toRadians(BLH.B);
 	var L = toRadians(BLH.L);
 	var H = BLH.H;
@@ -161,7 +142,7 @@ function BLHtoXYZ(e, BLH){
 }
 
 function XYZtoBLH(e, XYZ){
-	var BLH = new tBLH();
+	var BLH = {};
 	var N=0;
 	var L = atan(XYZ.Y / XYZ.X);
 	var Q = sqrt(pow (XYZ.X, 2) + pow(XYZ.Y, 2));
@@ -181,7 +162,7 @@ function XYZtoBLH(e, XYZ){
 }
 
 function BLHtoNEH(e, p, BLH){
-	var NEH = new tNEH();
+	var NEH = {};
 	var B = toRadians(BLH.B);
 	var L = toRadians(BLH.L);
 	var H = BLH.H;
@@ -208,7 +189,7 @@ function BLHtoNEH(e, p, BLH){
 }
 
 function NEHtoBLH(e, p, NEH){
-	var BLH = new tBLH();
+	var BLH = {};
 	var North = NEH.N;
 	var East = NEH.E;
 	var X0 = e.merdist(p.B0);
@@ -239,20 +220,28 @@ function NEHtoBLH(e, p, NEH){
 	return BLH;
 }
 
-function XYZ1toXYZ2(e, XYZ1){
-	var XYZ2 = new tXYZ();
-	var m = e.scale/1000000.0;
-	XYZ2.X = XYZ1.X + m * XYZ1.X + e.wz * XYZ1.Y / 206265 - e.wy * XYZ1.Z / 206265 + e.dx;
-	XYZ2.Y = XYZ1.Y + m * XYZ1.Y - e.wz * XYZ1.X / 206265 + e.wx * XYZ1.Z / 206265 + e.dy;
-	XYZ2.Z = XYZ1.Z + m * XYZ1.Z + e.wy * XYZ1.X / 206265 - e.wx * XYZ1.Y / 206265 + e.dz;
-	return XYZ2;
-}
+ //Position Vector convention of Helmert Transformation Method (Bursa_Wolf Model) (Topcon Sokkia)
+ function helmert_pv(e, xyz) {
+ 	var xyz2 = {};
+ 	var m = 1 + e.scale/1000000.0;
+ 	var sinRx = sin(toRadians(e.wx / 3600));
+ 	var cosRx = cos(toRadians(e.wx / 3600));
+ 	var sinRy = sin(toRadians(e.wy / 3600));
+ 	var cosRy = cos(toRadians(e.wy / 3600));
+ 	var sinRz = sin(toRadians(e.wz / 3600));
+ 	var cosRz = cos(toRadians(e.wz / 3600));
 
-function XYZ2toXYZ1(e, XYZ2){
-	var XYZ1 = new tXYZ();
-	var m = e.scale/1000000.0;
-	XYZ1.X = XYZ2.X - m * XYZ2.X - e.wz * XYZ2.Y / 206265 + e.wy * XYZ2.Z / 206265 - e.dx;
-	XYZ1.Y = XYZ2.Y - m * XYZ2.Y + e.wz * XYZ2.X / 206265 - e.wx * XYZ2.Z / 206265 - e.dy;
-	XYZ1.Z = XYZ2.Z - m * XYZ2.Z - e.wy * XYZ2.X / 206265 + e.wx * XYZ2.Y / 206265 - e.dz;
-	return XYZ1;
-}
+ 	xyz2.X = e.dx + m * (cosRy*cosRz*xyz.X + (-cosRx*sinRz+sinRx*sinRy*cosRz)*xyz.Y + (sinRx*sinRz+cosRx*sinRy*cosRz)*xyz.Z);
+ 	xyz2.Y = e.dy + m * (cosRy*sinRz*xyz.X + (cosRx*cosRz+sinRx*sinRy*sinRz)*xyz.Y + (-sinRx*cosRz+cosRx*sinRy*sinRz)*xyz.Z);
+ 	xyz2.Z = e.dz + m * (-sinRy*xyz.X + sinRx*cosRy*xyz.Y + cosRx*cosRy*xyz.Z);  
+ 	return xyz2
+ }
+
+//Coordinate Frame convention of Helmert Transformation Method (Bursa_Wolf Model) (Leica Trimble SP)
+ function helmert_cf(e, xyz){
+ 	var e_cf = e;
+ 	e_cf.wx = -e.wx;
+ 	e_cf.wy = -e.wy;
+ 	e_cf.wz = -e.wz;
+ 	return helmert_pv(e_cf, xyz);
+ }
